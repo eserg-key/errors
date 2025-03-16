@@ -1,174 +1,122 @@
 # Errors Package
-The errors package is a versatile Go library designed to simplify error handling in both HTTP and gRPC contexts. It provides a unified way to create, wrap, and manage errors while preserving HTTP status codes and gRPC error codes. This package is ideal for projects that need to handle errors consistently across different protocols.
+The errors package is a Go library designed to simplify error handling in applications that use both HTTP and gRPC protocols. It provides a unified structure for errors, allowing you to create, wrap, and convert errors with associated HTTP and gRPC status codes. This package is particularly useful for microservices and APIs that need to handle errors consistently across different communication protocols.
 
 ## Features
-- HTTP and gRPC Error Support: Create errors with HTTP status codes or gRPC error codes.
+- Unified Error Structure: Define errors with both HTTP and gRPC status codes.
 
-- Error Wrapping: Wrap errors with additional context while preserving the original error's status or code.
+- Error Wrapping: Wrap errors with additional context while preserving the original error's status code.
 
-- Multi-Error Handling: Append multiple errors into a single error object.
+- Protocol Conversion: Automatically convert between HTTP and gRPC status codes.
 
-- Error Flattening: Flatten nested multi-errors into a single list of errors.
+- Context-Aware Errors: Handle context-related errors (e.g., context.DeadlineExceeded) with appropriate status codes.
 
-- Error Prefixing: Add a prefix to error messages while preserving the original error's status or code.
-
-- Compatibility: Works seamlessly with standard Go error handling and popular error libraries like github.com/pkg/errors.
+- Predefined Error Constructors: Easily create errors with predefined HTTP and gRPC status codes.
 
 ## Installation
-To install the package, use go get:
+To use the errors package, install it using go get:
 ```
-go get github.com/eserg-key/errors
+go get -u github.com/eserg-key/errors
 ```
 ## Usage
-Importing the Package
+Then, import it in your Go code:
 ```
 import "github.com/eserg-key/errors"
 ```
 
-## Creating HTTP Errors
-The package provides constructors for common HTTP errors:
+## Creating Errors
+You can create errors with specific HTTP or gRPC status codes using the provided constructors.
+### HTTP Errors
 ```
-err := errors.BadRequest("Invalid input")
-err := errors.NotFound("Resource not found")
-err := errors.InternalServer("Internal server error")
+err := errors.BadRequestHTTP("Invalid input provided")
+err := errors.NotFoundHTTP("Resource not found")
+err := errors.InternalServerHTTP("Internal server error")
 ```
-
-## Creating gRPC Errors
-For gRPC, you can create errors with specific gRPC codes:
+### gRPC Errors
 ```
-err := errors.GRPCNotFound("Resource not found")
-err := errors.GRPCInternal("Internal server error")
-err := errors.GRPCInvalidArgument("Invalid argument")
-```
-
-## Creating Custom Errors
-You can create custom errors with specific HTTP status codes or gRPC codes:
-```azure
-// Custom HTTP error
-err := errors.New("Custom error message", http.StatusForbidden)
-
-// Custom gRPC error
-err := errors.NewGRPC("Custom error message", codes.Unavailable)
+err := errors.InvalidArgumentGRPC("Invalid argument provided")
+err := errors.NotFoundGRPC("Resource not found")
+err := errors.InternalGRPC("Internal server error")
 ```
 
 ## Wrapping Errors
-Wrap an existing error to add more context while preserving the original error's status or code:
-```azure
-originalErr := errors.NotFound("Resource not found")
-wrappedErr := errors.Wrap(originalErr, "Failed to fetch resource")
+You can wrap existing errors to add additional context while preserving the original error's status code.
+```
+originalErr := errors.NotFoundHTTP("User not found")
+wrappedErr := errors.Wrap(originalErr, "Failed to fetch user details")
+
+fmt.Println(wrappedErr.Error()) // Output: Failed to fetch user details: User not found
 ```
 
-## Handling Multiple Errors
-Append multiple errors into a single error object:
-```azure
-err1 := errors.BadRequest("Invalid input")
-err2 := errors.NotFound("Resource not found")
-combinedErr := errors.Append(err1, err2)
+## Retrieving Status Codes
+You can retrieve the HTTP or gRPC status code from an error.
+### HTTP Status Code
+```
+err := errors.BadRequestHTTP("Invalid input")
+status := errors.StatusHTTP(err)
+fmt.Println(status) // Output: 400
+```
+### gRPC Status Code
+```
+err := errors.InvalidArgumentGRPC("Invalid argument")
+status := errors.StatusGRPC(err)
+fmt.Println(status) // Output: 3 (gRPC InvalidArgument code)
 ```
 
-## Flattening Errors
-Flatten nested multi-errors into a single list of errors:
-```azure
-flattenedErr := errors.Flatten(combinedErr)
+## Handling Context Errors
+The package automatically handles context-related errors (e.g., context.DeadlineExceeded and context.Canceled) and maps them to appropriate status codes.
+```
+err := context.DeadlineExceeded
+httpStatus := errors.StatusHTTP(err)
+grpcStatus := errors.StatusGRPC(err)
+
+fmt.Println(httpStatus) // Output: 504 (HTTP Gateway Timeout)
+fmt.Println(grpcStatus) // Output: 4 (gRPC DeadlineExceeded)
 ```
 
-## Adding Prefixes to Errors
-Add a prefix to an error message while preserving the original error's status or code:
-```azure
-prefixedErr := errors.Prefix(err, "API Error")
+## Converting Between HTTP and gRPC Status Codes
+The package provides utility functions to convert between HTTP and gRPC status codes.
+### HTTP to gRPC
 ```
-
-## Extracting HTTP and gRPC Status Codes
-Retrieve the HTTP status code or gRPC code from an error:
-```azure
-httpStatus := errors.HTTPStatus(err)
-grpcCode := errors.GRPCStatus(err)
+httpCode := errors.HTTPBadRequest
+grpcCode := errors.StatusHTTPToGRPC(httpCode)
+fmt.Println(grpcCode) // Output: 3 (gRPC InvalidArgument)
 ```
-
-## Checking and Unwrapping Errors
-Use standard Go error handling functions:
-```azure
-// Check if an error is of a specific type
-var targetErr *errors.Error
-    if errors.As(err, &targetErr) {
-    // Handle the error
-}
-
-// Check if an error matches another error
-        if errors.Is(err, targetErr) {
-    // Handle the error
-}
-
-// Unwrap an error
-unwrappedErr := errors.Unwrap(err)
-
-// Get the root cause of an error
-rootCause := errors.Cause(err)
+### gRPC to HTTP
+```
+grpcCode := errors.GRPCInvalidArgument
+httpCode := errors.StatusGRPCToHTTP(grpcCode)
+fmt.Println(httpCode) // Output: 400 (HTTP Bad Request)
 ```
 
 ## Examples
 ### Example 1: Creating and Wrapping Errors
-```azure
+```
 package main
 
-    import (
+import (
 	"fmt"
-	"github.com/yourusername/errors"
-	"net/http"
+	"github.com/eserg-key/errors"
 )
 
 func main() {
-	err := errors.NotFound("User not found")
-	wrappedErr := errors.Wrap(err, "Failed to fetch user")
+	// Create an HTTP error
+	err := errors.BadRequestHTTP("Invalid input")
 
-	fmt.Println(wrappedErr.Error()) // Output: Failed to fetch user: User not found
-	fmt.Println(errors.HTTPStatus(wrappedErr)) // Output: 404
+	// Wrap the error with additional context
+	wrappedErr := errors.Wrap(err, "Validation failed")
+
+	// Retrieve the HTTP status code
+	status := errors.StatusHTTP(wrappedErr)
+	fmt.Println(status) // Output: 400
+
+	// Print the error message
+	fmt.Println(wrappedErr.Error()) // Output: Validation failed: Invalid input
 }
 ```
-
-### Example 2: Handling Multiple Errors
-```azure
-package main
-
-    import (
-	"fmt"
-	"github.com/yourusername/errors"
-)
-
-func main() {
-	err1 := errors.BadRequest("Invalid email")
-	err2 := errors.BadRequest("Invalid password")
-	combinedErr := errors.Append(err1, err2)
-
-	fmt.Println(combinedErr.Error()) // Output: 2 errors occurred:
-    //         * Invalid email
-	                                //         * Invalid password
-}
-```
-
-### Example 3: Using gRPC Errors
-```azure
-package main
-
-    import (
-	"fmt"
-	"github.com/yourusername/errors"
-	"google.golang.org/grpc/codes"
-)
-
-func main() {
-	err := errors.GRPCNotFound("User not found")
-	fmt.Println(err.Error()) // Output: User not found
-	fmt.Println(errors.GRPCStatus(err)) // Output: 5 (codes.NotFound)
-}
-```
-
-## Contributing
-Contributions are welcome! If you find a bug or have a feature request, please open an issue or submit a pull request.
-1. Fork the repository.
-2. Create a new branch for your changes.
-3. Commit your changes and push to the branch.
-4. Submit a pull request.
 
 ## License
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+## Acknowledgments
+- Inspired by the github.com/pkg/errors package.
+- Built for Go developers who need consistent error handling across HTTP and gRPC protocols.
